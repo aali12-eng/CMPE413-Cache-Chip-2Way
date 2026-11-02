@@ -63,16 +63,16 @@ In SimVision, zoom to 0 - 225 ns for the read miss and 225 - 340 ns for the writ
 read hit and write miss.
 
 
-3. Running with GHDL (free simulator, as used for the figures of the report)
----------------------------------------------------------------------------
-chip_test.vhd uses VHDL-87 file declarations and the Synopsys std_logic_arith package, so
-everything is compiled as VHDL-93 with relaxed rules. From the folder code/two_way/testbench:
+3. The same steps by hand (Cadence Xcelium)
+-------------------------------------------
+This is what run_two_way.sh does. The design is compiled as VHDL-93; chip_test.vhd uses
+VHDL-87 file declarations, so it is compiled without -v93. From code/two_way/testbench:
 
     cd code/two_way/testbench
-    OPT="--std=93c --ieee=synopsys -frelaxed-rules"
+    rm -rf xcelium.d                   (start from a clean library)
 
     # the design, in this order
-    ghdl -a $OPT ../cache_pkg.vhd \
+    xrun -compile -v93 ../cache_pkg.vhd \
         ../primitives/dff.vhd ../primitives/Dlatch.vhd ../primitives/tx.vhd \
         ../gates/not_gate.vhd ../gates/and2_gate.vhd ../gates/or2_gate.vhd \
         ../gates/nand2_gate.vhd ../gates/nor2_gate.vhd ../gates/xor2_gate.vhd \
@@ -83,18 +83,20 @@ everything is compiled as VHDL-93 with relaxed rules. From the folder code/two_w
         ../blocks/pos_dff.vhd ../blocks/half_adder.vhd ../blocks/counter.vhd \
         ../cache/cache_byte.vhd ../cache/cache_block.vhd ../cache/cache_way.vhd \
         ../cache/hit_miss.vhd ../cache/way_select.vhd ../cache/lru.vhd ../cache/cache.vhd \
-        ../control/state_machine.vhd ../chip.vhd tb_pkg.vhd
+        ../control/state_machine.vhd ../chip.vhd
 
-    # the course testbench (reads ./chip_in.txt), output compared with chip_out.log
-    ghdl -a $OPT chip_test.vhd
-    ghdl --elab-run $OPT chip_test --stop-time=360ns --vcd=chip_test.vcd > my_out.log
-    diff my_out.log chip_out.log      (only GHDL's last "simulation stopped" line differs)
+    # the course testbench (reads ./chip_in.txt): text output, compare with chip_out.log
+    xrun -top chip_test chip_test.vhd -input run.ncsim -access +rwc -l xrun.log
 
-    # one of the self-checking testbenches, e.g. the chip
-    ghdl -a $OPT chip/tb_chip.vhd
-    ghdl --elab-run $OPT tb_chip --stop-time=100us
+    # the course testbench in SimVision, with the waveforms (clock, CPU and memory
+    # interface, state, hit, write, count)
+    xrun -top chip_test chip_test.vhd -gui -access +rwc -input waves.tcl
 
-chip_test.vcd can be opened in GTKWave (gtkwave chip_test.vcd) to see the waveforms.
+    # one self-checking testbench, e.g. the chip (prints "tb_chip: ALL TESTS PASSED")
+    xrun -compile -v93 tb_pkg.vhd
+    xrun -v93 -top tb_chip chip/tb_chip.vhd -input run_tb.ncsim -l tb_chip.log
+
+run.ncsim runs chip_test for 360 ns and exits; run_tb.ncsim runs a testbench to its end.
 
 
 4. Design summary
